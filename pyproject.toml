@@ -1,9 +1,9 @@
 [project]
-name = "example_nodes_template"
+name = "griptape_nodes_chatterbox_library"
 version = "0.1.0"
-description = "Template for Users to create Custom Libraries and Nodes"
+description = "Chatterbox TTS text-to-speech generation for Griptape Nodes"
 authors = [
-    {name = "Your Name",email = "you@example.com"}
+    {name = "Griptape, Inc.", email = "hello@griptape.ai"}
 ]
 readme = "README.md"
 requires-python = "~=3.12"

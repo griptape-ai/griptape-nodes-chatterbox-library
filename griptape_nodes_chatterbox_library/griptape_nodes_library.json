@@ -1,0 +1,35 @@
+{
+  "name": "Griptape Nodes Chatterbox TTS Library",
+  "library_schema_version": "0.4.0",
+  "metadata": {
+    "author": "Griptape, Inc.",
+    "description": "Text-to-speech generation with voice cloning using Chatterbox TTS models",
+    "library_version": "0.1.0",
+    "engine_version": "0.65.2",
+    "tags": ["Griptape", "AI", "Audio", "TTS", "Voice Cloning", "Chatterbox"],
+    "dependencies": {
+      "pip_dependencies": [
+        "chatterbox-tts"
+      ]
+    },
+    "resources": {
+      "required": {
+        "compute": [["cuda"], "has_any"]
+      }
+    }
+  },
+  "categories": [],
+  "nodes": [
+    {
+      "class_name": "ChatterboxTextToSpeech",
+      "file_path": "chatterbox_nodes/chatterbox_tts.py",
+      "metadata": {
+        "category": "audio",
+        "description": "Generate speech from text using Chatterbox TTS with optional voice cloning",
+        "display_name": "Chatterbox TTS",
+        "icon": "Mic",
+        "group": "create"
+      }
+    }
+  ]
+}
