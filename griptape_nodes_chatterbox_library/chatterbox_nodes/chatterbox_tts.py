@@ -251,12 +251,12 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
         if repo_id == self.REPO_TURBO:
-            from chatterbox.tts import ChatterboxTurboTTS
+            from chatterbox.tts_turbo import ChatterboxTurboTTS
 
             model = ChatterboxTurboTTS.from_pretrained(device=device)
         elif repo_id == self.REPO_STANDARD:
             if multilingual:
-                from chatterbox.tts import ChatterboxMultilingualTTS
+                from chatterbox.mtl_tts import ChatterboxMultilingualTTS
 
                 model = ChatterboxMultilingualTTS.from_pretrained(device=device)
             else:
@@ -345,7 +345,7 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
 
             # Add language for multilingual mode
             if multilingual:
-                gen_kwargs["language"] = language
+                gen_kwargs["language_id"] = language
 
             # Generate speech
             logger.info("Generating speech with Chatterbox (repo=%s, multilingual=%s)...", repo_id, multilingual)

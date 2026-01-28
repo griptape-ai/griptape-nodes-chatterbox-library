@@ -1,0 +1,3 @@
+[submodule "griptape_nodes_chatterbox_library/chatterbox"]
+	path = griptape_nodes_chatterbox_library/chatterbox
+	url = https://github.com/resemble-ai/chatterbox.git
