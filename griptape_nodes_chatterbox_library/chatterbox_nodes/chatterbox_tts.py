@@ -90,18 +90,6 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
         )
         self.model_param.add_input_parameters()
 
-        # Multilingual toggle (only shown for standard model)
-        self.add_parameter(
-            ParameterBool(
-                name="multilingual",
-                default_value=False,
-                tooltip="Enable multilingual mode (23+ languages). Only available for the standard model.",
-                allowed_modes={ParameterMode.INPUT, ParameterMode.PROPERTY},
-                hide=True,  # Hidden by default, shown when standard model is selected
-                ui_options={"display_name": "Multilingual"},
-            )
-        )
-
         # Text input
         self.add_parameter(
             ParameterString(
@@ -113,15 +101,16 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
                 ui_options={"display_name": "Text"},
             )
         )
-
-        # Reference audio for voice cloning (optional)
+        
+        # Multilingual toggle (only shown for standard model)
         self.add_parameter(
-            ParameterAudio(
-                name="reference_audio",
-                tooltip="Optional reference audio for voice cloning (6-30 seconds recommended)",
-                clickable_file_browser=True,
-                allow_output=False,
-                ui_options={"display_name": "Reference Audio (Voice Cloning)"},
+            ParameterBool(
+                name="multilingual",
+                default_value=False,
+                tooltip="Enable multilingual mode (23+ languages). Only available for the standard model.",
+                allowed_modes={ParameterMode.INPUT, ParameterMode.PROPERTY},
+                hide=True,  # Hidden by default, shown when standard model is selected
+                ui_options={"display_name": "Multilingual"},
             )
         )
 
@@ -135,6 +124,17 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
                 traits={Options(choices=list(self.LANGUAGE_CODE_MAP.keys()))},
                 hide=True,  # Hidden by default, shown when multilingual is selected
                 ui_options={"display_name": "Language"},
+            )
+        )
+
+        # Reference audio for voice cloning (optional)
+        self.add_parameter(
+            ParameterAudio(
+                name="reference_audio",
+                tooltip="Optional reference audio for voice cloning (6-30 seconds recommended)",
+                clickable_file_browser=True,
+                allow_output=False,
+                ui_options={"display_name": "Reference Audio (Voice Cloning)"},
             )
         )
 
