@@ -10,7 +10,9 @@ from griptape.artifacts import AudioUrlArtifact
 
 from griptape_nodes.exe_types.core_types import Parameter, ParameterMode
 from griptape_nodes.exe_types.node_types import AsyncResult, SuccessFailureNode
+from griptape_nodes.exe_types.param_components.huggingface.huggingface_repo_parameter import HuggingFaceRepoParameter
 from griptape_nodes.exe_types.param_types.parameter_audio import ParameterAudio
+from griptape_nodes.exe_types.param_types.parameter_bool import ParameterBool
 from griptape_nodes.exe_types.param_types.parameter_float import ParameterFloat
 from griptape_nodes.exe_types.param_types.parameter_string import ParameterString
 from griptape_nodes.retained_mode.griptape_nodes import GriptapeNodes
@@ -22,18 +24,20 @@ logger = logging.getLogger("griptape_nodes_chatterbox_library")
 class ChatterboxTextToSpeech(SuccessFailureNode):
     """Generate speech from text using Chatterbox TTS with optional voice cloning.
 
-    This node supports three Chatterbox model variants:
+    This node supports two Chatterbox model variants:
     - Turbo: Lightweight 350M parameter model, optimized for low latency
     - Standard: Original 500M parameter model with advanced creative controls
-    - Multilingual: 500M parameter model supporting 23+ languages
+
+    The standard model can optionally be run in multilingual mode (23+ languages).
 
     Inputs:
+        - model: HuggingFace model selection (Turbo or Standard)
+        - multilingual: Enable multilingual mode (standard model only)
         - text: Text to convert to speech
-        - model_variant: Which Chatterbox model to use
         - reference_audio: Optional audio for voice cloning
         - cfg_weight: Voice adherence (0.0-1.0)
         - exaggeration: Expressiveness control (0.0-1.0)
-        - language: Language code (for multilingual model)
+        - language: Language code (for multilingual mode)
 
     Outputs:
         - audio: Generated speech audio
@@ -41,10 +45,10 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
         - result_details: Details about the result or error
     """
 
-    # Model variant constants
-    MODEL_TURBO: ClassVar[str] = "turbo"
-    MODEL_STANDARD: ClassVar[str] = "standard"
-    MODEL_MULTILINGUAL: ClassVar[str] = "multilingual"
+    # HuggingFace repo IDs
+    REPO_STANDARD: ClassVar[str] = "ResembleAI/chatterbox"
+    REPO_TURBO: ClassVar[str] = "ResembleAI/chatterbox-turbo"
+    MODEL_REPOS: ClassVar[list[str]] = [REPO_TURBO, REPO_STANDARD]
 
     DEFAULT_LANGUAGE: ClassVar[str] = "English (en)"
 
@@ -75,23 +79,26 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
         "Vietnamese (vi)": "vi",
     }
 
-    # Class-level model cache to avoid reloading
-    _model_cache: ClassVar[dict[str, Any]] = {}
-
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.category = "Audio Generation"
         self.description = "Generate speech from text using Chatterbox TTS"
 
-        # Model variant selection
+        # HuggingFace model parameter
+        self.model_param = HuggingFaceRepoParameter(
+            self, repo_ids=self.MODEL_REPOS, parameter_name="model"
+        )
+        self.model_param.add_input_parameters()
+
+        # Multilingual toggle (only shown for standard model)
         self.add_parameter(
-            ParameterString(
-                name="model_variant",
-                default_value=self.MODEL_TURBO,
-                tooltip="Chatterbox model variant: Turbo (fast), Standard (quality), or Multilingual (23+ languages)",
+            ParameterBool(
+                name="multilingual",
+                default_value=False,
+                tooltip="Enable multilingual mode (23+ languages). Only available for the standard model.",
                 allowed_modes={ParameterMode.INPUT, ParameterMode.PROPERTY},
-                traits={Options(choices=[self.MODEL_TURBO, self.MODEL_STANDARD, self.MODEL_MULTILINGUAL])},
-                ui_options={"display_name": "Model"},
+                hide=True,  # Hidden by default, shown when standard model is selected
+                ui_options={"display_name": "Multilingual"},
             )
         )
 
@@ -182,18 +189,34 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
         )
 
     def after_value_set(self, parameter: Parameter, value: Any) -> None:
-        """Update parameter visibility based on model selection."""
+        """Update parameter visibility based on model and multilingual selection."""
         super().after_value_set(parameter, value)
 
-        if parameter.name == "model_variant":
-            if value == self.MODEL_MULTILINGUAL:
+        # When model changes, show/hide multilingual toggle
+        if parameter.name == "model":
+            if value == self.REPO_STANDARD:
+                self.show_parameter_by_name("multilingual")
+            else:
+                # Hide multilingual for turbo model and reset to False
+                self.hide_parameter_by_name("multilingual")
+                self.parameter_values["multilingual"] = False
+                self.hide_parameter_by_name("language")
+
+        # When multilingual toggle changes, show/hide language selector
+        if parameter.name == "multilingual":
+            if value:
                 self.show_parameter_by_name("language")
             else:
                 self.hide_parameter_by_name("language")
 
     def validate_before_node_run(self) -> list[Exception] | None:
-        """Validate CUDA availability and required inputs."""
+        """Validate CUDA availability, model download, and required inputs."""
         errors = super().validate_before_node_run() or []
+
+        # Validate HuggingFace model is downloaded
+        model_errors = self.model_param.validate_before_node_run()
+        if model_errors:
+            errors.extend(model_errors)
 
         # Check CUDA availability
         try:
@@ -211,36 +234,40 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
 
         return errors if errors else None
 
-    def _get_model(self, variant: str) -> Any:
-        """Get or load the Chatterbox model (with caching)."""
-        if variant in self._model_cache:
-            logger.info("Using cached %s model", variant)
-            return self._model_cache[variant]
+    def _get_model(self, repo_id: str, multilingual: bool) -> Any:
+        """Load the Chatterbox model.
 
-        logger.info("Loading Chatterbox %s model...", variant)
+        Args:
+            repo_id: HuggingFace repository ID for the model
+            multilingual: Whether to use multilingual mode (standard model only)
+
+        Returns:
+            Loaded Chatterbox model instance
+        """
+        logger.info("Loading Chatterbox model: %s (multilingual=%s)...", repo_id, multilingual)
 
         import torch
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        if variant == self.MODEL_TURBO:
+        if repo_id == self.REPO_TURBO:
             from chatterbox.tts import ChatterboxTurboTTS
 
             model = ChatterboxTurboTTS.from_pretrained(device=device)
-        elif variant == self.MODEL_STANDARD:
-            from chatterbox.tts import ChatterboxTTS
+        elif repo_id == self.REPO_STANDARD:
+            if multilingual:
+                from chatterbox.tts import ChatterboxMultilingualTTS
 
-            model = ChatterboxTTS.from_pretrained(device=device)
-        elif variant == self.MODEL_MULTILINGUAL:
-            from chatterbox.tts import ChatterboxMultilingualTTS
+                model = ChatterboxMultilingualTTS.from_pretrained(device=device)
+            else:
+                from chatterbox.tts import ChatterboxTTS
 
-            model = ChatterboxMultilingualTTS.from_pretrained(device=device)
+                model = ChatterboxTTS.from_pretrained(device=device)
         else:
-            msg = f"Unknown model variant: {variant}"
+            msg = f"Unknown model repo: {repo_id}"
             raise ValueError(msg)
 
-        self._model_cache[variant] = model
-        logger.info("Chatterbox %s model loaded successfully", variant)
+        logger.info("Chatterbox model loaded successfully")
         return model
 
     def _download_reference_audio(self, audio_artifact: Any, temp_dir: Path) -> Path | None:
@@ -282,7 +309,8 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
         import torchaudio
 
         # Get parameter values
-        model_variant = self.get_parameter_value("model_variant") or self.MODEL_TURBO
+        repo_id, _revision = self.model_param.get_repo_revision()
+        multilingual = self.get_parameter_value("multilingual") or False
         text = self.get_parameter_value("text")
         reference_audio = self.get_parameter_value("reference_audio")
         cfg_weight = self.get_parameter_value("cfg_weight")
@@ -298,7 +326,7 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
             temp_path = Path(temp_dir)
 
             # Load model
-            model = self._get_model(model_variant)
+            model = self._get_model(repo_id, multilingual)
 
             # Prepare reference audio path
             ref_audio_path = None
@@ -315,12 +343,12 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
             if ref_audio_path:
                 gen_kwargs["audio_prompt_path"] = str(ref_audio_path)
 
-            # Add language for multilingual model
-            if model_variant == self.MODEL_MULTILINGUAL:
+            # Add language for multilingual mode
+            if multilingual:
                 gen_kwargs["language"] = language
 
             # Generate speech
-            logger.info("Generating speech with Chatterbox %s...", model_variant)
+            logger.info("Generating speech with Chatterbox (repo=%s, multilingual=%s)...", repo_id, multilingual)
             wav = model.generate(**gen_kwargs)
 
             # Save to temporary file
@@ -336,9 +364,10 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
 
             self.parameter_output_values["audio"] = AudioUrlArtifact(value=saved_url, name=filename)
 
+            model_desc = f"{repo_id} (multilingual)" if multilingual else repo_id
             self._set_status_results(
                 was_successful=True,
-                result_details=f"SUCCESS: Speech generated with {model_variant} model and saved as {filename}",
+                result_details=f"SUCCESS: Speech generated with {model_desc} and saved as {filename}",
             )
 
     def process(self) -> AsyncResult[None]:
