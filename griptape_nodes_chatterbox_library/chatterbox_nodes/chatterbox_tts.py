@@ -9,7 +9,7 @@ from typing import Any, ClassVar
 from griptape.artifacts import AudioUrlArtifact
 
 from griptape_nodes.exe_types.core_types import Parameter, ParameterMode
-from griptape_nodes.exe_types.node_types import AsyncResult, SuccessFailureNode
+from griptape_nodes.exe_types.node_types import AsyncResult, BaseNode, SuccessFailureNode
 from griptape_nodes.exe_types.param_components.huggingface.huggingface_repo_parameter import HuggingFaceRepoParameter
 from griptape_nodes.exe_types.param_types.parameter_audio import ParameterAudio
 from griptape_nodes.exe_types.param_types.parameter_bool import ParameterBool
@@ -208,6 +208,17 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
                 self.show_parameter_by_name("language")
             else:
                 self.hide_parameter_by_name("language")
+
+    def after_incoming_connection_removed(
+        self,
+        source_node: BaseNode,
+        source_parameter: Parameter,
+        target_parameter: Parameter,
+    ) -> None:
+        """Clear reference_audio when its connection is removed."""
+        if target_parameter.name == "reference_audio":
+            self.set_parameter_value("reference_audio", None)
+        return super().after_incoming_connection_removed(source_node, source_parameter, target_parameter)
 
     def validate_before_node_run(self) -> list[Exception] | None:
         """Validate CUDA availability, model download, and required inputs."""
