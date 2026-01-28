@@ -178,7 +178,7 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
                 allowed_modes={ParameterMode.OUTPUT, ParameterMode.PROPERTY},
                 settable=False,
                 pulse_on_run=True,
-                ui_options={"is_full_width": True},
+                ui_options={"is_full_width": True, "display_name": "Generated Audio"},
             )
         )
 
