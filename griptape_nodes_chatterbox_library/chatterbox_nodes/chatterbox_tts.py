@@ -6,6 +6,9 @@ import time
 from pathlib import Path
 from typing import Any, ClassVar
 
+import torch  # noqa: F401
+import torchaudio  # noqa: F401
+
 from griptape.artifacts import AudioUrlArtifact
 
 from griptape_nodes.exe_types.core_types import Parameter, ParameterMode
@@ -231,8 +234,6 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
 
         # Check CUDA availability
         try:
-            import torch
-
             if not torch.cuda.is_available():
                 errors.append(ValueError("Chatterbox TTS requires a CUDA-capable GPU. No CUDA device found."))
         except ImportError:
@@ -256,8 +257,6 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
             Loaded Chatterbox model instance
         """
         logger.info("Loading Chatterbox model: %s (multilingual=%s)...", repo_id, multilingual)
-
-        import torch
 
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -317,7 +316,6 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
 
     def _generate_speech(self) -> None:
         """Generate speech using Chatterbox TTS."""
-        import torchaudio
 
         # Get parameter values
         repo_id, _revision = self.model_param.get_repo_revision()
