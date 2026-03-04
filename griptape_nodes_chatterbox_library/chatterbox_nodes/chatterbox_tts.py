@@ -18,6 +18,7 @@ from griptape_nodes.exe_types.param_types.parameter_audio import ParameterAudio
 from griptape_nodes.exe_types.param_types.parameter_bool import ParameterBool
 from griptape_nodes.exe_types.param_types.parameter_float import ParameterFloat
 from griptape_nodes.exe_types.param_types.parameter_string import ParameterString
+from griptape_nodes.files.file import File, FileLoadError
 from griptape_nodes.retained_mode.griptape_nodes import GriptapeNodes
 from griptape_nodes.traits.options import Options
 
@@ -294,23 +295,15 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
             logger.warning("Unsupported reference audio type: %s", type(audio_artifact))
             return None
 
-        # Handle local paths
-        if not url.startswith(("http://", "https://")):
-            local_path = Path(url)
-            if local_path.exists():
-                return local_path
-            logger.warning("Local reference audio not found: %s", url)
-            return None
-
-        # Download from URL
-        import httpx
-
+        # Download audio via File (handles both local paths and URLs)
         temp_file = temp_dir / "reference_audio.wav"
 
-        logger.info("Downloading reference audio from %s", url)
-        response = httpx.get(url, timeout=60)
-        response.raise_for_status()
-        temp_file.write_bytes(response.content)
+        try:
+            logger.info("Loading reference audio from %s", url)
+            temp_file.write_bytes(File(url).read_bytes())
+        except FileLoadError:
+            logger.warning("Reference audio not found: %s", url)
+            return None
 
         return temp_file
 
