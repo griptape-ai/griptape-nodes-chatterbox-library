@@ -8,9 +8,7 @@ from typing import Any, ClassVar
 
 import torch  # noqa: F401
 import torchaudio  # noqa: F401
-
 from griptape.artifacts import AudioUrlArtifact
-
 from griptape_nodes.exe_types.core_types import Parameter, ParameterMode
 from griptape_nodes.exe_types.node_types import AsyncResult, BaseNode, SuccessFailureNode
 from griptape_nodes.exe_types.param_components.huggingface.huggingface_repo_parameter import HuggingFaceRepoParameter
@@ -88,9 +86,7 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
         self.description = "Generate speech from text using Chatterbox TTS"
 
         # HuggingFace model parameter
-        self.model_param = HuggingFaceRepoParameter(
-            self, repo_ids=self.MODEL_REPOS, parameter_name="model"
-        )
+        self.model_param = HuggingFaceRepoParameter(self, repo_ids=self.MODEL_REPOS, parameter_name="model")
         self.model_param.add_input_parameters()
 
         # Text input
@@ -104,7 +100,7 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
                 ui_options={"display_name": "Text"},
             )
         )
-        
+
         # Multilingual toggle (only shown for standard model)
         self.add_parameter(
             ParameterBool(
@@ -237,7 +233,9 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
             if not torch.cuda.is_available():
                 errors.append(ValueError("Chatterbox TTS requires a CUDA-capable GPU. No CUDA device found."))
         except ImportError:
-            errors.append(ValueError("PyTorch is not installed. Please ensure chatterbox-tts dependencies are installed."))
+            errors.append(
+                ValueError("PyTorch is not installed. Please ensure chatterbox-tts dependencies are installed.")
+            )
 
         # Check text input
         text = self.get_parameter_value("text")
