@@ -2,7 +2,6 @@
 
 import logging
 import tempfile
-import time
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -14,12 +13,12 @@ from griptape.artifacts import AudioUrlArtifact
 from griptape_nodes.exe_types.core_types import Parameter, ParameterMode
 from griptape_nodes.exe_types.node_types import AsyncResult, BaseNode, SuccessFailureNode
 from griptape_nodes.exe_types.param_components.huggingface.huggingface_repo_parameter import HuggingFaceRepoParameter
+from griptape_nodes.exe_types.param_components.project_file_parameter import ProjectFileParameter
 from griptape_nodes.exe_types.param_types.parameter_audio import ParameterAudio
 from griptape_nodes.exe_types.param_types.parameter_bool import ParameterBool
 from griptape_nodes.exe_types.param_types.parameter_float import ParameterFloat
 from griptape_nodes.exe_types.param_types.parameter_string import ParameterString
 from griptape_nodes.files.file import File, FileLoadError
-from griptape_nodes.retained_mode.griptape_nodes import GriptapeNodes
 from griptape_nodes.traits.options import Options
 
 logger = logging.getLogger("griptape_nodes_chatterbox_library")
@@ -185,6 +184,13 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
                 ui_options={"is_full_width": True, "display_name": "Generated Audio"},
             )
         )
+
+        self._output_file = ProjectFileParameter(
+            node=self,
+            name="output_file",
+            default_filename="chatterbox_tts.wav",
+        )
+        self._output_file.add_parameter()
 
         # Create status parameters for success/failure tracking
         self._create_status_parameters(
@@ -358,18 +364,17 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
             torchaudio.save(str(temp_output_path), wav, model.sr)
 
             # Save to static storage
-            filename = f"chatterbox_tts_{int(time.time())}.wav"
             audio_bytes = temp_output_path.read_bytes()
 
-            static_files_manager = GriptapeNodes.StaticFilesManager()
-            saved_url = static_files_manager.save_static_file(audio_bytes, filename)
+            dest = self._output_file.build_file()
+            saved = dest.write_bytes(audio_bytes)
 
-            self.parameter_output_values["audio"] = AudioUrlArtifact(value=saved_url, name=filename)
+            self.parameter_output_values["audio"] = AudioUrlArtifact(value=saved.location)
 
             model_desc = f"{repo_id} (multilingual)" if multilingual else repo_id
             self._set_status_results(
                 was_successful=True,
-                result_details=f"SUCCESS: Speech generated with {model_desc} and saved as {filename}",
+                result_details=f"SUCCESS: Speech generated with {model_desc}",
             )
 
     def process(self) -> AsyncResult[None]:
