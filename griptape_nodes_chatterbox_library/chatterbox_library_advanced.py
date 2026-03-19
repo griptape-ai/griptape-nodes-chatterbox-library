@@ -9,7 +9,6 @@ import tomllib
 from pathlib import Path
 
 import pygit2
-
 from griptape_nodes.node_library.advanced_node_library import AdvancedNodeLibrary
 from griptape_nodes.node_library.library_registry import Library, LibrarySchema
 from griptape_nodes.retained_mode.griptape_nodes import GriptapeNodes
@@ -169,9 +168,7 @@ class ChatterboxLibraryAdvanced(AdvancedNodeLibrary):
         self._update_submodules_recursive(git_repo_root)
 
         if not chatterbox_dir.exists() or not any(chatterbox_dir.iterdir()):
-            raise RuntimeError(
-                f"Submodule initialization failed: {chatterbox_dir} is empty or does not exist"
-            )
+            raise RuntimeError(f"Submodule initialization failed: {chatterbox_dir} is empty or does not exist")
 
         logger.info("Chatterbox submodule initialized successfully")
         return chatterbox_dir
