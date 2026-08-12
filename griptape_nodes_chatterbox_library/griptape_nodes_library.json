@@ -5,7 +5,7 @@
   "metadata": {
     "author": "Griptape, Inc.",
     "description": "Text-to-speech generation with voice cloning using Chatterbox TTS models",
-    "library_version": "0.1.0",
+    "library_version": "0.1.1",
     "engine_version": "0.75.0",
     "tags": ["Griptape", "AI", "Audio", "TTS", "Voice Cloning", "Chatterbox"],
     "dependencies": {
