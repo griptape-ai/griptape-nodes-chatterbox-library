@@ -10,7 +10,6 @@
     "tags": ["Griptape", "AI", "Audio", "TTS", "Voice Cloning", "Chatterbox"],
     "dependencies": {
       "pip_dependencies": [
-        "pygit2",
         "numpy>=1.26.0",
         "torch==2.8.0+cu128",
         "torchaudio==2.8.0+cu128"

@@ -8,7 +8,6 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-import pygit2
 from griptape_nodes.node_library.advanced_node_library import AdvancedNodeLibrary
 from griptape_nodes.node_library.library_registry import Library, LibrarySchema
 from griptape_nodes.retained_mode.griptape_nodes import GriptapeNodes
@@ -142,17 +141,6 @@ class ChatterboxLibraryAdvanced(AdvancedNodeLibrary):
                 logger.error("stderr: %s", e.stderr)
             raise
 
-    def _update_submodules_recursive(self, repo_path: Path) -> None:
-        """Recursively update and initialize all submodules using pygit2."""
-        repo = pygit2.Repository(str(repo_path))
-        repo.submodules.update(init=True)
-
-        # Recursively update nested submodules
-        for submodule in repo.submodules:
-            submodule_path = repo_path / submodule.path
-            if submodule_path.exists() and (submodule_path / ".git").exists():
-                self._update_submodules_recursive(submodule_path)
-
     def _init_chatterbox_submodule(self) -> Path:
         """Initialize the Chatterbox git submodule."""
         library_root = self._get_library_root()
@@ -164,8 +152,11 @@ class ChatterboxLibraryAdvanced(AdvancedNodeLibrary):
             return chatterbox_dir
 
         logger.info("Initializing Chatterbox submodule...")
+        # The git CLI rather than pygit2: the engine dropped pygit2 (its bundled TLS trust
+        # store breaks on some platforms) and requires git on PATH, so it is the one tool
+        # guaranteed to be here.
         git_repo_root = library_root.parent
-        self._update_submodules_recursive(git_repo_root)
+        subprocess.check_call(["git", "-C", str(git_repo_root), "submodule", "update", "--init", "--recursive"])
 
         if not chatterbox_dir.exists() or not any(chatterbox_dir.iterdir()):
             raise RuntimeError(f"Submodule initialization failed: {chatterbox_dir} is empty or does not exist")
