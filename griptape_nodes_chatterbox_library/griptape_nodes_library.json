@@ -1,41 +1,50 @@
 {
-  "name": "Griptape Nodes Chatterbox TTS Library",
-  "library_schema_version": "0.4.0",
-  "advanced_library_path": "chatterbox_library_advanced.py",
-  "metadata": {
-    "author": "Griptape, Inc.",
-    "description": "Text-to-speech generation with voice cloning using Chatterbox TTS models",
-    "library_version": "0.2.0",
-    "engine_version": "0.75.0",
-    "tags": ["Griptape", "AI", "Audio", "TTS", "Voice Cloning", "Chatterbox"],
-    "dependencies": {
-      "pip_dependencies": [
-        "numpy>=1.26.0",
-        "torch==2.8.0+cu128",
-        "torchaudio==2.8.0+cu128"
-      ],
-      "pip_install_flags": [
-        "--extra-index-url", "https://download.pytorch.org/whl/cu128"
-      ]
+    "name": "Griptape Nodes Chatterbox TTS Library",
+    "library_schema_version": "0.4.0",
+    "advanced_library_path": "chatterbox_library_advanced.py",
+    "metadata": {
+        "author": "Griptape, Inc.",
+        "description": "Text-to-speech generation with voice cloning using Chatterbox TTS models",
+        "library_version": "0.2.0",
+        "engine_version": "0.75.0",
+        "tags": [
+            "Griptape",
+            "AI",
+            "Audio",
+            "TTS",
+            "Voice Cloning",
+            "Chatterbox"
+        ],
+        "dependencies": {
+            "pip_dependencies": [],
+            "pip_install_flags": [
+                "--extra-index-url",
+                "https://download.pytorch.org/whl/cu128"
+            ]
+        },
+        "resources": {
+            "required": {
+                "compute": [
+                    [
+                        "cuda"
+                    ],
+                    "has_any"
+                ]
+            }
+        }
     },
-    "resources": {
-      "required": {
-        "compute": [["cuda"], "has_any"]
-      }
-    }
-  },
-  "categories": [],
-  "nodes": [
-    {
-      "class_name": "ChatterboxTextToSpeech",
-      "file_path": "chatterbox_nodes/chatterbox_tts.py",
-      "metadata": {
-        "category": "audio",
-        "description": "Generate speech from text using Chatterbox TTS with optional voice cloning",
-        "display_name": "Chatterbox TTS",
-        "icon": "Mic",
-        "group": "create"
-      }
-    }
-  ]
+    "categories": [],
+    "nodes": [
+        {
+            "class_name": "ChatterboxTextToSpeech",
+            "file_path": "chatterbox_nodes/chatterbox_tts.py",
+            "metadata": {
+                "category": "audio",
+                "description": "Generate speech from text using Chatterbox TTS with optional voice cloning",
+                "display_name": "Chatterbox TTS",
+                "icon": "Mic",
+                "group": "create"
+            }
+        }
+    ]
 }
