@@ -16,7 +16,11 @@
             "Chatterbox"
         ],
         "dependencies": {
-            "pip_dependencies": [],
+            "pip_dependencies": [
+                "numpy>=1.26.0",
+                "torch==2.8.0+cu128",
+                "torchaudio==2.8.0+cu128"
+            ],
             "pip_install_flags": [
                 "--extra-index-url",
                 "https://download.pytorch.org/whl/cu128"
