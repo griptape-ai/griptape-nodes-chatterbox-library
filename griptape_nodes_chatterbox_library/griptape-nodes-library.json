@@ -6,7 +6,7 @@
         "author": "Griptape, Inc.",
         "description": "Text-to-speech generation with voice cloning using Chatterbox TTS models",
         "library_version": "0.2.0",
-        "engine_version": "0.75.0",
+        "engine_version": "0.102.0",
         "tags": [
             "Griptape",
             "AI",
@@ -34,8 +34,8 @@
                 "transformers==4.46.3"
             ],
             "pip_install_flags": [
-                "--extra-index-url",
-                "https://download.pytorch.org/whl/cu128"
+                "--preview",
+                "--torch-backend=auto"
             ]
         },
         "resources": {
