@@ -1,6 +1,6 @@
 {
     "name": "Griptape Nodes Chatterbox TTS Library",
-    "library_schema_version": "0.4.0",
+    "library_schema_version": "0.12.0",
     "advanced_library_path": "chatterbox_library_advanced.py",
     "metadata": {
         "author": "Griptape, Inc.",
@@ -16,10 +16,22 @@
             "Chatterbox"
         ],
         "dependencies": {
-            "pip_dependencies": [
+            "pip_dependencies": [],
+            "pip_dependencies_exec": [
                 "numpy>=1.26.0",
                 "torch==2.8.0+cu128",
-                "torchaudio==2.8.0+cu128"
+                "torchaudio==2.8.0+cu128",
+                "conformer==0.3.2",
+                "diffusers==0.29.0",
+                "librosa==0.11.0",
+                "omegaconf==2.3.1",
+                "pykakasi==2.3.0",
+                "pyloudnorm==0.2.0",
+                "resemble-perth==1.0.1",
+                "s3tokenizer==0.3.0",
+                "safetensors==0.5.3",
+                "spacy-pkuseg==1.0.1",
+                "transformers==4.46.3"
             ],
             "pip_install_flags": [
                 "--extra-index-url",
