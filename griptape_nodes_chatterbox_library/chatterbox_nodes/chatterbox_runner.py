@@ -17,10 +17,10 @@ import torchaudio
 
 logger = logging.getLogger("griptape_nodes_chatterbox_library")
 
-# Chatterbox is reached through the submodule's source tree rather than installed as a package,
-# because upstream pins torch==2.6.0 and torchaudio==2.6.0: declaring it in the execution set
-# makes that set unresolvable against the torch 2.8.0+cu128 build the library needs for current
-# GPUs. Every package chatterbox imports IS declared, so only its own code comes from here.
+# The submodule is installed with --no-deps rather than declared in the execution set, because
+# upstream pins torch==2.6.0 and torchaudio==2.6.0, which cannot resolve against the
+# torch 2.8.0+cu128 build current GPUs need. That install supplies only distribution metadata;
+# `src` goes first on sys.path so the pinned checkout is the code that runs.
 CHATTERBOX_SRC = Path(__file__).parent.parent / "chatterbox" / "src"
 
 TURBO = "turbo"
