@@ -5,8 +5,6 @@ import tempfile
 from pathlib import Path
 from typing import Any, ClassVar
 
-import torch  # noqa: F401
-import torchaudio  # noqa: F401
 from griptape.artifacts import AudioUrlArtifact
 from griptape_nodes.exe_types.core_types import Parameter, ParameterMode
 from griptape_nodes.exe_types.node_types import AsyncResult, BaseNode, SuccessFailureNode
@@ -235,14 +233,10 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
         if model_errors:
             errors.extend(model_errors)
 
-        # Check CUDA availability
-        try:
-            if not torch.cuda.is_available():
-                errors.append(ValueError("Chatterbox TTS requires a CUDA-capable GPU. No CUDA device found."))
-        except ImportError:
-            errors.append(
-                ValueError("PyTorch is not installed. Please ensure chatterbox-tts dependencies are installed.")
-            )
+        # Check CUDA availability. Answered by the engine, which detects the backends without
+        # importing torch: this method runs on the orchestrator, which has no execution packages.
+        if "cuda" not in self.available_compute:
+            errors.append(ValueError("Chatterbox TTS requires a CUDA-capable GPU. No CUDA device found."))
 
         # Check text input
         text = self.get_parameter_value("text")
@@ -250,40 +244,6 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
             errors.append(ValueError("Text input is required"))
 
         return errors if errors else None
-
-    def _get_model(self, repo_id: str, multilingual: bool) -> Any:
-        """Load the Chatterbox model.
-
-        Args:
-            repo_id: HuggingFace repository ID for the model
-            multilingual: Whether to use multilingual mode (standard model only)
-
-        Returns:
-            Loaded Chatterbox model instance
-        """
-        logger.info("Loading Chatterbox model: %s (multilingual=%s)...", repo_id, multilingual)
-
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-
-        if repo_id == self.REPO_TURBO:
-            from chatterbox.tts_turbo import ChatterboxTurboTTS
-
-            model = ChatterboxTurboTTS.from_pretrained(device=device)
-        elif repo_id == self.REPO_STANDARD:
-            if multilingual:
-                from chatterbox.mtl_tts import ChatterboxMultilingualTTS
-
-                model = ChatterboxMultilingualTTS.from_pretrained(device=device)
-            else:
-                from chatterbox.tts import ChatterboxTTS
-
-                model = ChatterboxTTS.from_pretrained(device=device)
-        else:
-            msg = f"Unknown model repo: {repo_id}"
-            raise ValueError(msg)
-
-        logger.info("Chatterbox model loaded successfully")
-        return model
 
     def _download_reference_audio(self, audio_artifact: Any, temp_dir: Path) -> Path | None:
         """Download reference audio to temporary file if provided."""
@@ -313,6 +273,9 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
 
     def _generate_speech(self) -> None:
         """Generate speech using Chatterbox TTS."""
+        # Deferred: chatterbox_runner imports torch, torchaudio and the chatterbox sources, none of
+        # which exist outside the execution environment this method runs in.
+        from chatterbox_nodes import chatterbox_runner
 
         # Get parameter values
         repo_id, _revision = self.model_param.get_repo_revision()
@@ -328,38 +291,35 @@ class ChatterboxTextToSpeech(SuccessFailureNode):
         language_display = self.get_parameter_value("language") or self.DEFAULT_LANGUAGE
         language = self.LANGUAGE_CODE_MAP.get(language_display, "en")
 
+        # Which model class to build. Kept here beside the repo ids the dropdown offers, so the
+        # execution module never needs a copy of them.
+        if repo_id == self.REPO_TURBO:
+            variant = chatterbox_runner.TURBO
+        elif repo_id == self.REPO_STANDARD:
+            variant = chatterbox_runner.MULTILINGUAL if multilingual else chatterbox_runner.STANDARD
+        else:
+            msg = f"Unknown model repo: {repo_id}"
+            raise ValueError(msg)
+
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-
-            # Load model
-            model = self._get_model(repo_id, multilingual)
 
             # Prepare reference audio path
             ref_audio_path = None
             if reference_audio:
                 ref_audio_path = self._download_reference_audio(reference_audio, temp_path)
 
-            # Build generation kwargs
-            gen_kwargs: dict[str, Any] = {
-                "text": text,
-                "cfg_weight": cfg_weight,
-                "exaggeration": exaggeration,
-            }
-
-            if ref_audio_path:
-                gen_kwargs["audio_prompt_path"] = str(ref_audio_path)
-
-            # Add language for multilingual mode
-            if multilingual:
-                gen_kwargs["language_id"] = language
-
-            # Generate speech
-            logger.info("Generating speech with Chatterbox (repo=%s, multilingual=%s)...", repo_id, multilingual)
-            wav = model.generate(**gen_kwargs)
-
-            # Save to temporary file
             temp_output_path = temp_path / "output.wav"
-            torchaudio.save(str(temp_output_path), wav, model.sr)
+            chatterbox_runner.synthesize(
+                variant=variant,
+                device=self.execution_device,
+                text=text,
+                cfg_weight=cfg_weight,
+                exaggeration=exaggeration,
+                output_path=temp_output_path,
+                reference_audio_path=ref_audio_path,
+                language=language if multilingual else None,
+            )
 
             # Save to static storage
             audio_bytes = temp_output_path.read_bytes()
