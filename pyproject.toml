@@ -1,6 +1,6 @@
 [project]
 name = "griptape_nodes_chatterbox_library"
-version = "0.1.0"
+version = "0.3.0"
 description = "Chatterbox TTS text-to-speech generation for Griptape Nodes"
 authors = [
     {name = "Griptape, Inc.", email = "hello@griptape.ai"}
