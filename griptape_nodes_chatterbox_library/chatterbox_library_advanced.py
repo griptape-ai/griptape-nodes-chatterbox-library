@@ -18,18 +18,19 @@ class ChatterboxLibraryAdvanced(AdvancedNodeLibrary):
     """Advanced library hooks for Chatterbox TTS library.
 
     Checks out the Chatterbox git submodule, which carries the model code the nodes import while
-    they execute. Every package the library needs is declared in the manifest and installed by the
-    engine, so nothing is installed here.
+    they execute, and installs it into the execution environment. Its dependencies are declared in
+    the manifest and installed by the engine, so the submodule itself goes in with --no-deps.
     """
 
     def before_library_nodes_loaded(self, library_data: LibrarySchema, library: Library) -> None:
-        """Check out the Chatterbox submodule the nodes import at execution time."""
+        """Check out the Chatterbox submodule and install it for the nodes to import at execution time."""
         logger.info("Loading Chatterbox TTS library: %s", library_data.name)
-        # The submodule checkout below populates the execution environment, which only the
-        # worker imports; the orchestrator has no use for it and must not run it.
+        # The submodule checkout and install below populate the execution environment, which only
+        # the worker imports; the orchestrator has no use for them and must not run them.
         if not GriptapeNodes.LibraryManager().is_worker:
             return
-        self._init_chatterbox_submodule()
+        if self._init_chatterbox_submodule():
+            self._install_chatterbox_package()
 
     def after_library_nodes_loaded(self, library_data: LibrarySchema, library: Library) -> None:
         """Log completion of library loading."""
@@ -42,8 +43,16 @@ class ChatterboxLibraryAdvanced(AdvancedNodeLibrary):
         """Get the library root directory."""
         return Path(__file__).parent
 
-    def _init_chatterbox_submodule(self) -> None:
-        """Initialize the Chatterbox git submodule.
+    def _get_venv_python_path(self) -> Path:
+        """Get the Python executable of the library's execution environment."""
+        venv_path = self._get_library_root() / ".venv-exec"
+
+        if GriptapeNodes.OSManager().is_windows():
+            return venv_path / "Scripts" / "python.exe"
+        return venv_path / "bin" / "python"
+
+    def _init_chatterbox_submodule(self) -> bool:
+        """Initialize the Chatterbox git submodule, and return whether its sources are present.
 
         A failure here only costs execution: the nodes still load and can be edited, and the node
         reports the missing sources when someone runs it. Raising would drop the whole library and
@@ -55,7 +64,7 @@ class ChatterboxLibraryAdvanced(AdvancedNodeLibrary):
         # Check if submodule is already initialized
         if chatterbox_dir.exists() and any(chatterbox_dir.iterdir()):
             logger.info("Chatterbox submodule already initialized")
-            return
+            return True
 
         logger.info("Initializing Chatterbox submodule...")
         # The git CLI rather than pygit2: the engine dropped pygit2 (its bundled TLS trust
@@ -72,7 +81,7 @@ class ChatterboxLibraryAdvanced(AdvancedNodeLibrary):
                 git_repo_root,
                 e,
             )
-            return
+            return False
 
         if not chatterbox_dir.exists() or not any(chatterbox_dir.iterdir()):
             logger.warning(
@@ -80,6 +89,52 @@ class ChatterboxLibraryAdvanced(AdvancedNodeLibrary):
                 "submodule. Nodes will load but cannot generate speech.",
                 chatterbox_dir,
             )
-            return
+            return False
 
         logger.info("Chatterbox submodule initialized successfully")
+        return True
+
+    def _install_chatterbox_package(self) -> None:
+        """Install the submodule into the execution environment as the chatterbox-tts distribution.
+
+        Being importable is not enough: chatterbox reads its own version from the distribution's
+        metadata when it is imported, so without an install every node fails with "No package
+        metadata was found for chatterbox-tts". A failure here only costs execution, for the same
+        reason as the submodule checkout.
+        """
+        venv_python = self._get_venv_python_path()
+        installed = subprocess.run(
+            [str(venv_python), "-c", "import importlib.metadata; importlib.metadata.version('chatterbox-tts')"],
+            capture_output=True,
+        )
+        if installed.returncode == 0:
+            logger.info("chatterbox-tts already installed in the execution environment")
+            return
+
+        chatterbox_dir = self._get_library_root() / "chatterbox"
+        logger.info("Installing Chatterbox from submodule into the execution environment...")
+        try:
+            # The engine builds the execution environment with uv, which seeds no pip.
+            if subprocess.run([str(venv_python), "-m", "pip", "--version"], capture_output=True).returncode != 0:
+                subprocess.run(
+                    [str(venv_python), "-m", "ensurepip", "--upgrade"], check=True, capture_output=True, text=True
+                )
+            subprocess.run(
+                [str(venv_python), "-m", "pip", "install", "--no-deps", str(chatterbox_dir)],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+        except (subprocess.CalledProcessError, OSError) as e:
+            output = getattr(e, "stderr", None) or ""
+            logger.warning(
+                "Chatterbox model code is unavailable: installing %s into %s failed (%s). "
+                "Nodes will load but cannot generate speech.\n%s",
+                chatterbox_dir,
+                venv_python,
+                e,
+                output,
+            )
+            return
+
+        logger.info("Chatterbox installed successfully")
