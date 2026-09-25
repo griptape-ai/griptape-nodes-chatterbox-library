@@ -37,7 +37,7 @@ A [Griptape Nodes](https://www.griptapenodes.com/) library providing text-to-spe
    - Click on _+ Add Library_ at the bottom of the settings panel
    - Enter the path to the library JSON file:
      ```
-     <workspace_directory>/griptape-nodes-chatterbox-library/griptape_nodes_chatterbox_library/griptape-nodes-library.json
+     <workspace_directory>/griptape-nodes-chatterbox-library/griptape_nodes_chatterbox_library/griptape_nodes_library.json
      ```
    - Close the Settings Panel
    - Click on _Refresh Libraries_
