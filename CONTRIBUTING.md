@@ -82,6 +82,10 @@ To set a specific version:
 make version/set v=1.2.3
 ```
 
+### First Release With the Changelog
+
+The repo has no version tags yet, and the `[Unreleased]` link in `CHANGELOG.md` compares from `v0.3.0`. Before the first version bump, run **Actions > Version Publish** on `main` while it is still at `0.3.0`, so that tag exists. Otherwise the first rolled section's compare link points at a missing tag. This is needed once.
+
 ### Regular Release
 
 1. Merge your changes to `main`.
