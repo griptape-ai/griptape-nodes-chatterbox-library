@@ -10,4 +10,4 @@ the `library_version` in `griptape_nodes_chatterbox_library/griptape_nodes_libra
 
 <!-- Entries go in changelog.d/, one file each. See changelog.d/README.md. -->
 
-[Unreleased]: https://github.com/griptape-ai/griptape-nodes-chatterbox-library/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/griptape-ai/griptape-nodes-chatterbox-library/compare/e0e500a0df04ddf878a8d511cac539ac7f3246c5...HEAD
